@@ -9,7 +9,9 @@ import com.example.paymal.model.response.MerchantRes;
 import com.example.paymal.model.response.PaymentRes;
 import com.example.paymal.repositories.MerchantRepository;
 import com.example.paymal.repositories.PaymentRepository;
+import com.example.paymal.exceptions.CustomException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -55,7 +57,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         Payment payment = paymentRepository.findByIdAndMerchant(id, merchant)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
+                .orElseThrow(() -> new CustomException("Payment not found", HttpStatus.NOT_FOUND));
 
         if (payment.getStatus() != PaymentStatus.PENDING) {
             String message;
@@ -78,7 +80,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public HttpEntity<?> get(UUID id) {
         Payment payment = paymentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
+                .orElseThrow(() -> new CustomException("Payment not found", HttpStatus.NOT_FOUND));
         return ResponseEntity.ok(ApiResponse.success(toRes(payment)));
     }
 

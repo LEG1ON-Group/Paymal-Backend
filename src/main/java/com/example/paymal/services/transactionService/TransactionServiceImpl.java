@@ -84,14 +84,18 @@ public class TransactionServiceImpl implements TransactionService {
     private String generateClickUrl(Payment payment) {
         String amount = payment.getAmount().toString();
         String merchantTransId = payment.getId().toString();
-        String returnUrl = payment.getReturnUrl().toString();
+        String returnUrl = payment.getReturnUrl() != null ? payment.getReturnUrl() : "";
 
-        String query = String.format("service_id=%s&merchant_id=%s&amount=%s&transaction_param=%s&return_url=%s",
+        StringBuilder query = new StringBuilder(String.format(
+                "service_id=%s&merchant_id=%s&amount=%s&transaction_param=%s",
                 urlEncode(clickServiceId),
                 urlEncode(clickMerchantId),
                 urlEncode(amount),
-                urlEncode(merchantTransId),
-                urlEncode(returnUrl));
+                urlEncode(merchantTransId)));
+
+        if (!returnUrl.isEmpty()) {
+            query.append("&return_url=").append(urlEncode(returnUrl));
+        }
 
         return clickBaseUrl + "?" + query;
     }
