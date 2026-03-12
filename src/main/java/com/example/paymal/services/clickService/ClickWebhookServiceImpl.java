@@ -52,27 +52,35 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
 
         // VALIDATION
         if (clickTransId == null || serviceIdParam == null || merchantTransId == null || amount == null || action == null || signTime == null || signString == null) {
+            log.warn("Click Prepare validation failed: Missing parameters. clickTransId={}, serviceId={}, merchantTransId={}, amount={}, action={}, signTime={}, signString={}",
+                    clickTransId, serviceIdParam, merchantTransId, amount, action, signTime, signString);
             return makeResponse(-8, "Missing parameters");
         }
 
         if (!serviceId.equals(serviceIdParam)) {
+            log.warn("Click Prepare validation failed: Incorrect service ID. Expected: {}, Received: {}", serviceId, serviceIdParam);
             return makeResponse(-2, "Incorrect service ID");
         }
 
         // SIGNATURE VERIFICATION
         String expectedSign = DigestUtils.md5DigestAsHex((clickTransId + serviceIdParam + secretKey + merchantTransId + amount + action + signTime).getBytes());
         if (!expectedSign.equals(signString)) {
+            log.warn("Click Prepare Sign Check Failed! Expected: {}, Received: {}, Params used: click_trans_id={}, service_id={}, secret_key (hidden), merchant_trans_id={}, amount={}, action={}, sign_time={}",
+                    expectedSign, signString, clickTransId, serviceIdParam, merchantTransId, amount, action, signTime);
             return makeResponse(-1, "SIGN CHECK FAILED");
         }
+        log.info("Click Prepare Sign Check PASSED for click_trans_id={}", clickTransId);
 
         // FIND PAYMENT (merchant_trans_id)
         Optional<Payment> paymentOpt = paymentRepository.findById(UUID.fromString(merchantTransId));
         if (paymentOpt.isEmpty()) {
+            log.warn("Click Prepare failed: Payment not found for ID: {}", merchantTransId);
             return makeResponse(-3, "Payment not found");
         }
         Payment payment = paymentOpt.get();
 
         if (payment.getStatus() == PaymentStatus.COMPLETED) {
+            log.warn("Click Prepare failed: Already paid. Payment ID: {}", merchantTransId);
             return makeResponse(-4, "Already paid");
         }
 
@@ -99,6 +107,7 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
             transaction.setMerchantPrepareId(transaction.getId().toString());
             transaction = transactionRepository.save(transaction);
         }
+        log.info("Click Prepare transaction saved/updated: ID={}, Status={}", transaction.getId(), transaction.getStatus());
 
         Map<String, Object> response = makeResponse(0, "Success");
         response.put("click_trans_id", clickTransId);
@@ -121,16 +130,22 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
         String signString = params.get("sign_string");
 
         if (clickTransId == null || serviceIdParam == null || merchantTransId == null || merchantPrepareId == null || amount == null || action == null || signTime == null || signString == null) {
+            log.warn("Click Complete validation failed: Missing parameters. clickTransId={}, serviceId={}, merchantTransId={}, merchantPrepareId={}, amount={}, action={}, signTime={}, signString={}",
+                    clickTransId, serviceIdParam, merchantTransId, merchantPrepareId, amount, action, signTime, signString);
             return makeResponse(-8, "Missing parameters");
         }
 
         String expectedSign = DigestUtils.md5DigestAsHex((clickTransId + serviceIdParam + secretKey + merchantTransId + merchantPrepareId + amount + action + signTime).getBytes());
         if (!expectedSign.equals(signString)) {
+            log.warn("Click Complete Sign Check Failed! Expected: {}, Received: {}, Params: click_trans_id={}, service_id={}, secret_key (hidden), merchant_trans_id={}, merchant_prepare_id={}, amount={}, action={}, sign_time={}",
+                    expectedSign, signString, clickTransId, serviceIdParam, merchantTransId, merchantPrepareId, amount, action, signTime);
             return makeResponse(-1, "SIGN CHECK FAILED");
         }
+        log.info("Click Complete Sign Check PASSED for click_trans_id={}", clickTransId);
 
         Optional<Transaction> transactionOpt = transactionRepository.findById(UUID.fromString(merchantPrepareId));
         if (transactionOpt.isEmpty()) {
+            log.warn("Click Complete failed: Transaction not found for ID (merchant_prepare_id): {}", merchantPrepareId);
             return makeResponse(-3, "Transaction not found");
         }
         Transaction transaction = transactionOpt.get();
@@ -145,6 +160,7 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
         }
 
         if (error != null && Integer.parseInt(error) < 0) {
+            log.warn("Click Complete failed: Click returned error={}. click_trans_id={}", error, clickTransId);
             transaction.setStatus(TransactionStatus.FAIL);
             transactionRepository.save(transaction);
             return makeResponse(-9, "Transaction cancelled by Click");
