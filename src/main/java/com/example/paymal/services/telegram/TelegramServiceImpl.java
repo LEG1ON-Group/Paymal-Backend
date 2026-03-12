@@ -21,11 +21,23 @@ public class TelegramServiceImpl implements TelegramService {
 
     @Override
     public void sendMessage(String message) {
-        String url = String.format("https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s&parse_mode=HTML",
-                botToken, groupId, message);
+        String url = String.format("https://api.telegram.org/bot%s/sendMessage", botToken);
+        
+        java.util.Map<String, String> body = new java.util.HashMap<>();
+        body.put("chat_id", groupId);
+        body.put("text", message);
+        body.put("parse_mode", "HTML");
 
+        log.info("Attempting to send Telegram message to chat_id: {}", groupId);
         try {
-            restTemplate.getForObject(url, String.class);
+            org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(url, body, String.class);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Telegram message sent successfully to chat_id: {}", groupId);
+            } else {
+                log.error("Telegram API returned error: {} - {}", response.getStatusCode(), response.getBody());
+            }
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("Telegram API error (4xx): {} - Response: {}", e.getMessage(), e.getResponseBodyAsString());
         } catch (Exception e) {
             log.error("Failed to send telegram message: {}", e.getMessage());
         }
