@@ -86,19 +86,30 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
 
         BigDecimal amountDecimal = new BigDecimal(amount);
         if (amountDecimal.compareTo(payment.getAmount()) != 0) {
+            log.warn("Click Prepare failed: Amount mismatch. Expected: {}, Received: {}", payment.getAmount(), amountDecimal);
             return makeResponse(-5, "Amount mismatch");
         }
 
         Transaction transaction = transactionRepository.findByClickTransId(clickTransId)
-                .orElseGet(() -> Transaction.builder()
-                        .payment(payment)
-                        .paymentProvider(com.example.paymal.model.enums.PaymentProvider.CLICK)
-                        .amount(payment.getAmount())
-                        .currency(payment.getMerchant().getUser().getFirstName() != null ? com.example.paymal.model.enums.Currency.UZS : com.example.paymal.model.enums.Currency.UZS) // Helper: default UZS
-                        .status(TransactionStatus.PENDING)
-                        .clickTransId(clickTransId)
-                        .clickPaydocId(params.get("click_paydoc_id"))
-                        .build());
+                .orElseGet(() -> transactionRepository.findByPaymentAndPaymentProvider(payment, com.example.paymal.model.enums.PaymentProvider.CLICK)
+                        .map(existing -> {
+                            log.info("Click Prepare: Found existing transaction for payment, updating with click_trans_id={}", clickTransId);
+                            existing.setClickTransId(clickTransId);
+                            existing.setClickPaydocId(params.get("click_paydoc_id"));
+                            return existing;
+                        })
+                        .orElseGet(() -> {
+                            log.info("Click Prepare: Creating new transaction for click_trans_id={}", clickTransId);
+                            return Transaction.builder()
+                                    .payment(payment)
+                                    .paymentProvider(com.example.paymal.model.enums.PaymentProvider.CLICK)
+                                    .amount(payment.getAmount())
+                                    .currency(com.example.paymal.model.enums.Currency.UZS)
+                                    .status(TransactionStatus.PENDING)
+                                    .clickTransId(clickTransId)
+                                    .clickPaydocId(params.get("click_paydoc_id"))
+                                    .build();
+                        }));
 
         transaction.setMerchantPrepareId(transaction.getId() != null ? transaction.getId().toString() : null);
         transaction = transactionRepository.save(transaction);
@@ -168,6 +179,7 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
 
         BigDecimal amountDecimal = new BigDecimal(amount);
         if (amountDecimal.compareTo(payment.getAmount()) != 0) {
+            log.warn("Click Complete failed: Amount mismatch. Expected: {}, Received: {}", payment.getAmount(), amountDecimal);
             return makeResponse(-5, "Amount mismatch");
         }
 
