@@ -173,7 +173,8 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
 
         transaction.setStatus(TransactionStatus.SUCCESS);
         transaction.setMerchantConfirmId(transaction.getId().toString());
-        transactionRepository.save(transaction);
+        transaction = transactionRepository.save(transaction);
+        log.info("Click Complete transaction SUCCESS: ID={}", transaction.getId());
 
         payment.setStatus(PaymentStatus.COMPLETED);
         paymentRepository.save(payment);

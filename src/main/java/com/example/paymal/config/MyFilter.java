@@ -108,6 +108,7 @@ public class MyFilter extends OncePerRequestFilter {
 
         return requestPath.startsWith("/api/auth/")
                 || (requestPath.startsWith("/api/files/") && "GET".equalsIgnoreCase(method))
-                || requestPath.startsWith("/api/payments");
+                || requestPath.startsWith("/api/payments")
+                || requestPath.startsWith("/api/webhooks/");
     }
 }
