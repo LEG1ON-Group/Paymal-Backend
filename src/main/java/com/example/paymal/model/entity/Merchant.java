@@ -48,4 +48,12 @@ public class Merchant extends BaseEntity {
     @Column(precision = 19, scale = 4)
     @Builder.Default
     private BigDecimal balance = BigDecimal.ZERO;
+
+    @Column(precision = 19, scale = 4, nullable = false)
+    @Builder.Default
+    private BigDecimal feePercentage = new BigDecimal("5.0");
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isFeeIncluded = false;
 }

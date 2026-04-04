@@ -11,7 +11,7 @@ import com.example.paymal.repositories.TransactionRepository;
 import com.example.paymal.services.balance.BalanceService;
 import com.example.paymal.services.telegram.TelegramService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
+
 public class ClickWebhookServiceImpl implements ClickWebhookService {
 
     private final TransactionRepository transactionRepository;
@@ -52,58 +52,47 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
 
         // VALIDATION
         if (clickTransId == null || serviceIdParam == null || merchantTransId == null || amount == null || action == null || signTime == null || signString == null) {
-            log.warn("Click Prepare validation failed: Missing parameters. clickTransId={}, serviceId={}, merchantTransId={}, amount={}, action={}, signTime={}, signString={}",
-                    clickTransId, serviceIdParam, merchantTransId, amount, action, signTime, signString);
             return makeResponse(-8, "Missing parameters");
         }
 
         if (!serviceId.equals(serviceIdParam)) {
-            log.warn("Click Prepare validation failed: Incorrect service ID. Expected: {}, Received: {}", serviceId, serviceIdParam);
             return makeResponse(-2, "Incorrect service ID");
         }
 
         // SIGNATURE VERIFICATION
         String expectedSign = DigestUtils.md5DigestAsHex((clickTransId + serviceIdParam + secretKey + merchantTransId + amount + action + signTime).getBytes());
         if (!expectedSign.equals(signString)) {
-            log.warn("Click Prepare Sign Check Failed! Expected: {}, Received: {}, Params used: click_trans_id={}, service_id={}, secret_key (hidden), merchant_trans_id={}, amount={}, action={}, sign_time={}",
-                    expectedSign, signString, clickTransId, serviceIdParam, merchantTransId, amount, action, signTime);
             return makeResponse(-1, "SIGN CHECK FAILED");
         }
-        log.info("Click Prepare Sign Check PASSED for click_trans_id={}", clickTransId);
 
         // FIND PAYMENT (merchant_trans_id)
         Optional<Payment> paymentOpt = paymentRepository.findById(UUID.fromString(merchantTransId));
         if (paymentOpt.isEmpty()) {
-            log.warn("Click Prepare failed: Payment not found for ID: {}", merchantTransId);
             return makeResponse(-3, "Payment not found");
         }
         Payment payment = paymentOpt.get();
 
         if (payment.getStatus() == PaymentStatus.COMPLETED) {
-            log.warn("Click Prepare failed: Already paid. Payment ID: {}", merchantTransId);
             return makeResponse(-4, "Already paid");
         }
 
         BigDecimal amountDecimal = new BigDecimal(amount);
-        if (amountDecimal.compareTo(payment.getAmount()) != 0) {
-            log.warn("Click Prepare failed: Amount mismatch. Expected: {}, Received: {}", payment.getAmount(), amountDecimal);
+        if (amountDecimal.compareTo(payment.getTotalAmount()) != 0) {
             return makeResponse(-5, "Amount mismatch");
         }
 
         Transaction transaction = transactionRepository.findByClickTransId(clickTransId)
                 .orElseGet(() -> transactionRepository.findByPaymentAndPaymentProvider(payment, com.example.paymal.model.enums.PaymentProvider.CLICK)
                         .map(existing -> {
-                            log.info("Click Prepare: Found existing transaction for payment, updating with click_trans_id={}", clickTransId);
                             existing.setClickTransId(clickTransId);
                             existing.setClickPaydocId(params.get("click_paydoc_id"));
                             return existing;
                         })
                         .orElseGet(() -> {
-                            log.info("Click Prepare: Creating new transaction for click_trans_id={}", clickTransId);
                             return Transaction.builder()
                                     .payment(payment)
                                     .paymentProvider(com.example.paymal.model.enums.PaymentProvider.CLICK)
-                                    .amount(payment.getAmount())
+                                    .amount(payment.getTotalAmount())
                                     .currency(com.example.paymal.model.enums.Currency.UZS)
                                     .status(TransactionStatus.PENDING)
                                     .clickTransId(clickTransId)
@@ -118,7 +107,6 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
             transaction.setMerchantPrepareId(transaction.getId().toString());
             transaction = transactionRepository.save(transaction);
         }
-        log.info("Click Prepare transaction saved/updated: ID={}, Status={}", transaction.getId(), transaction.getStatus());
 
         Map<String, Object> response = makeResponse(0, "Success");
         response.put("click_trans_id", clickTransId);
@@ -141,22 +129,16 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
         String signString = params.get("sign_string");
 
         if (clickTransId == null || serviceIdParam == null || merchantTransId == null || merchantPrepareId == null || amount == null || action == null || signTime == null || signString == null) {
-            log.warn("Click Complete validation failed: Missing parameters. clickTransId={}, serviceId={}, merchantTransId={}, merchantPrepareId={}, amount={}, action={}, signTime={}, signString={}",
-                    clickTransId, serviceIdParam, merchantTransId, merchantPrepareId, amount, action, signTime, signString);
             return makeResponse(-8, "Missing parameters");
         }
 
         String expectedSign = DigestUtils.md5DigestAsHex((clickTransId + serviceIdParam + secretKey + merchantTransId + merchantPrepareId + amount + action + signTime).getBytes());
         if (!expectedSign.equals(signString)) {
-            log.warn("Click Complete Sign Check Failed! Expected: {}, Received: {}, Params: click_trans_id={}, service_id={}, secret_key (hidden), merchant_trans_id={}, merchant_prepare_id={}, amount={}, action={}, sign_time={}",
-                    expectedSign, signString, clickTransId, serviceIdParam, merchantTransId, merchantPrepareId, amount, action, signTime);
             return makeResponse(-1, "SIGN CHECK FAILED");
         }
-        log.info("Click Complete Sign Check PASSED for click_trans_id={}", clickTransId);
 
         Optional<Transaction> transactionOpt = transactionRepository.findById(UUID.fromString(merchantPrepareId));
         if (transactionOpt.isEmpty()) {
-            log.warn("Click Complete failed: Transaction not found for ID (merchant_prepare_id): {}", merchantPrepareId);
             return makeResponse(-3, "Transaction not found");
         }
         Transaction transaction = transactionOpt.get();
@@ -171,27 +153,25 @@ public class ClickWebhookServiceImpl implements ClickWebhookService {
         }
 
         if (error != null && Integer.parseInt(error) < 0) {
-            log.warn("Click Complete failed: Click returned error={}. click_trans_id={}", error, clickTransId);
             transaction.setStatus(TransactionStatus.FAIL);
             transactionRepository.save(transaction);
             return makeResponse(-9, "Transaction cancelled by Click");
         }
 
         BigDecimal amountDecimal = new BigDecimal(amount);
-        if (amountDecimal.compareTo(payment.getAmount()) != 0) {
-            log.warn("Click Complete failed: Amount mismatch. Expected: {}, Received: {}", payment.getAmount(), amountDecimal);
+        if (amountDecimal.compareTo(payment.getTotalAmount()) != 0) {
             return makeResponse(-5, "Amount mismatch");
         }
 
         transaction.setStatus(TransactionStatus.SUCCESS);
         transaction.setMerchantConfirmId(transaction.getId().toString());
         transaction = transactionRepository.save(transaction);
-        log.info("Click Complete transaction SUCCESS: ID={}", transaction.getId());
 
         payment.setStatus(PaymentStatus.COMPLETED);
         paymentRepository.save(payment);
 
-        balanceService.updateBalance(payment.getMerchant(), payment.getAmount(), ReferenceType.PAYMENT, null);
+        BigDecimal netAmount = payment.getTotalAmount().subtract(payment.getFeeAmount());
+        balanceService.updateBalance(payment.getMerchant(), netAmount, ReferenceType.PAYMENT, null);
 
         sendSuccessNotification(payment);
 

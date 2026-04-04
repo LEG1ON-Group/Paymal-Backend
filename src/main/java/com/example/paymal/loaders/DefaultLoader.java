@@ -27,6 +27,20 @@ public class DefaultLoader implements CommandLineRunner {
         ) {
             setUsersData(adminName);
         }
+
+        String userName = "+998901234567";
+        if (usersRepository.findByPhone(userName) == null) {
+            Role userRole = roleRepository.findByRoleName(RoleEnum.ROLE_USER.name());
+            usersRepository.save(
+                    new User(
+                            userName,
+                            "User",
+                            "Test",
+                            passwordEncoder.encode("user123"),
+                            userRole
+                    )
+            );
+        }
     }
 
     private void setUsersData(String adminName) {

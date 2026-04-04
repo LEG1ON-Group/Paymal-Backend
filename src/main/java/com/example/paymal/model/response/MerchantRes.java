@@ -4,6 +4,7 @@ import com.example.paymal.model.enums.MerchantStatus;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -17,4 +18,6 @@ public class MerchantRes {
     private String webhookUrl;
     private String apiKey;
     private MerchantStatus status;
+    private BigDecimal feePercentage;
+    private Boolean isFeeIncluded;
 }

@@ -1,14 +1,14 @@
 package com.example.paymal.services.telegram;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
+
 public class TelegramServiceImpl implements TelegramService {
 
     @Value("${telegram.bot.token}")
@@ -28,18 +28,18 @@ public class TelegramServiceImpl implements TelegramService {
         body.put("text", message);
         body.put("parse_mode", "HTML");
 
-        log.info("Attempting to send Telegram message to chat_id: {}", groupId);
+
         try {
             org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(url, body, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("Telegram message sent successfully to chat_id: {}", groupId);
+
             } else {
-                log.error("Telegram API returned error: {} - {}", response.getStatusCode(), response.getBody());
+
             }
         } catch (org.springframework.web.client.HttpClientErrorException e) {
-            log.error("Telegram API error (4xx): {} - Response: {}", e.getMessage(), e.getResponseBodyAsString());
+
         } catch (Exception e) {
-            log.error("Failed to send telegram message: {}", e.getMessage());
+
         }
     }
 }

@@ -42,6 +42,8 @@ public class MerchantServiceImpl implements MerchantService {
                 .user(user)
                 .apiKey(UUID.randomUUID().toString())
                 .apiSecret(UUID.randomUUID().toString())
+                .feePercentage(req.getFeePercentage() != null ? req.getFeePercentage() : new java.math.BigDecimal("5.0"))
+                .isFeeIncluded(req.getIsFeeIncluded() != null ? req.getIsFeeIncluded() : false)
                 .build();
 
         if (req.getLogoId() != null) {
@@ -67,6 +69,11 @@ public class MerchantServiceImpl implements MerchantService {
         merchant.setDescription(req.getDescription());
         merchant.setWebsiteUrl(req.getWebsiteUrl());
         merchant.setWebhookUrl(req.getWebhookUrl());
+        merchant.setIsFeeIncluded(req.getIsFeeIncluded() != null ? req.getIsFeeIncluded() : merchant.getIsFeeIncluded());
+
+        if (user.getRoleName().equals("ROLE_ADMIN") && req.getFeePercentage() != null) {
+            merchant.setFeePercentage(req.getFeePercentage());
+        }
 
         if (req.getLogoId() != null) {
             if (merchant.getLogo() != null && !merchant.getLogo().getId().equals(req.getLogoId())) {
@@ -187,6 +194,8 @@ public class MerchantServiceImpl implements MerchantService {
                 .apiKey(merchant.getApiKey())
                 .status(merchant.getStatus())
                 .imageUrl(imageUrl)
+                .feePercentage(merchant.getFeePercentage() != null ? merchant.getFeePercentage() : new java.math.BigDecimal("5.0"))
+                .isFeeIncluded(Boolean.TRUE.equals(merchant.getIsFeeIncluded()))
                 .build();
     }
 }

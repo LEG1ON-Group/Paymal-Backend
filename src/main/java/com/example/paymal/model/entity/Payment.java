@@ -41,4 +41,10 @@ public class Payment extends BaseEntity {
 
     @Column
     private String returnUrl;
+
+    @Column(precision = 19, scale = 4)
+    private BigDecimal feeAmount;
+
+    @Column(precision = 19, scale = 4)
+    private BigDecimal totalAmount;
 }

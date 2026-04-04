@@ -42,6 +42,17 @@ public class PaymentServiceImpl implements PaymentService {
                 .expiresAt(LocalDateTime.now().plusMinutes(15))
                 .build();
 
+        java.math.BigDecimal feePercentage = merchant.getFeePercentage() != null ? merchant.getFeePercentage() : new java.math.BigDecimal("5.0");
+        java.math.BigDecimal feeAmount = req.getAmount().multiply(feePercentage).divide(new java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
+        java.math.BigDecimal totalAmount = req.getAmount();
+
+        if (Boolean.TRUE.equals(merchant.getIsFeeIncluded())) {
+            totalAmount = totalAmount.add(feeAmount);
+        }
+
+        payment.setFeeAmount(feeAmount);
+        payment.setTotalAmount(totalAmount);
+
         payment = paymentRepository.save(payment);
         payment.setPaymentUrl("https://paymal.uz/pay/" + payment.getId());
         payment = paymentRepository.save(payment);
@@ -107,6 +118,8 @@ public class PaymentServiceImpl implements PaymentService {
                 .expiresAt(payment.getExpiresAt().toString())
                 .paymentUrl(payment.getPaymentUrl())
                 .returnUrl(payment.getReturnUrl())
+                .feeAmount(payment.getFeeAmount())
+                .totalAmount(payment.getTotalAmount())
                 .build();
     }
 }

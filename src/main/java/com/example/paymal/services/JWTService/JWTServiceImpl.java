@@ -23,7 +23,7 @@ public class JWTServiceImpl implements JWTService {
         UUID id = user.getId();
         Map<String, Object> claims = new HashMap<>();
         claims.put("phone", user.getPhone());
-        Date hourFromCurrentTime = new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24);
+        Date hourFromCurrentTime = new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 30);
 //        Date hourFromCurrentTime = new Date(System.currentTimeMillis() + (1000 * 10));
         return Jwts.builder()
                 .addClaims(claims)
@@ -38,7 +38,7 @@ public class JWTServiceImpl implements JWTService {
     public String generateJWTRefreshToken(User users) {
         UUID id = users.getId();
         return Jwts.builder().
-                setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24 * 30))
+                setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 30))
 //                setExpiration(new Date(System.currentTimeMillis() + (1000 * 25)))
                 .setIssuedAt(new Date())
                 .setSubject(id.toString())

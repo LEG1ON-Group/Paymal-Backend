@@ -15,7 +15,7 @@ import com.example.paymal.repositories.MerchantRepository;
 import com.example.paymal.repositories.PaymentRepository;
 import com.example.paymal.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +27,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
+
 public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
@@ -55,7 +55,7 @@ public class TransactionServiceImpl implements TransactionService {
                     Transaction newTransaction = Transaction.builder()
                             .payment(payment)
                             .paymentProvider(provider)
-                            .amount(payment.getAmount())
+                            .amount(payment.getTotalAmount())
                             .currency(com.example.paymal.model.enums.Currency.UZS)
                             .status(TransactionStatus.PENDING)
                             .build();
@@ -84,7 +84,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private String generateClickUrl(Payment payment) {
-        String amount = payment.getAmount().toString();
+        String amount = payment.getTotalAmount().toString();
         String merchantTransId = payment.getId().toString();
         String returnUrl = payment.getReturnUrl() != null ? payment.getReturnUrl() : "";
 
@@ -100,7 +100,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         String url = clickBaseUrl + "?" + query;
-        log.info("Generated Click URL for Payment {}: {}", payment.getId(), url);
+
         return url;
     }
 

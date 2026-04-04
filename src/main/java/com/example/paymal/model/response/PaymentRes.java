@@ -19,4 +19,6 @@ public class PaymentRes {
     private String expiresAt;
     private String paymentUrl;
     private String returnUrl;
+    private BigDecimal feeAmount;
+    private BigDecimal totalAmount;
 }

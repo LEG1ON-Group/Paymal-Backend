@@ -11,4 +11,6 @@ public class MerchantReq {
     private String websiteUrl;
     private UUID logoId;
     private String webhookUrl;
+    private java.math.BigDecimal feePercentage;
+    private Boolean isFeeIncluded;
 }
