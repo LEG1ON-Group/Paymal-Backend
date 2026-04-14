@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
@@ -30,22 +31,36 @@ public class MyFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException, ServletException {
-        String requestPath = request.getRequestURI();
+        String requestPath = request.getServletPath();
 
         if (requestPath.startsWith("/api")) {
+            if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             if (isOpenUrl(request)) {
                 filterChain.doFilter(request, response);
                 return;
             }
+
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             String header = request.getHeader("Authorization");
             String token = null;
 
-            if (header != null && header.startsWith("Bearer ")) {
-                token = header.substring(7);
+            if (header != null) {
+                String normalizedHeader = header.trim();
+                if (normalizedHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                    token = normalizedHeader.substring(7).trim();
+                }
             }
 
 
-            if (token != null) {
+            if (token != null && !token.isEmpty()) {
                 try {
                     String subject = jwtService.extractUserFromJwt(token);
                     UserDetails userDetails = userRepo.findById(UUID.fromString(subject)).orElseThrow();
@@ -55,6 +70,7 @@ public class MyFilter extends OncePerRequestFilter {
                                     null,
                                     userDetails.getAuthorities()
                             );
+                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 } catch (ExpiredJwtException e) {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401 Unauthorized
@@ -103,7 +119,7 @@ public class MyFilter extends OncePerRequestFilter {
     }
 
     private static boolean isOpenUrl(HttpServletRequest request) {
-        String requestPath = request.getRequestURI();
+        String requestPath = request.getServletPath();
         String method = request.getMethod();
 
         return requestPath.startsWith("/api/auth/")
