@@ -38,9 +38,9 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(
                         auth -> auth
-                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/api/auth/**", "/api/payments", "/api/payments/**", "/api/webhooks/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
+                                .requestMatchers("/api/merchants/**").hasAnyRole("ADMIN", "USER")
                                 .requestMatchers("/api/**").authenticated()
                 ).exceptionHandling(
                         exception -> exception.authenticationEntryPoint(myAuthEntryPoint)
